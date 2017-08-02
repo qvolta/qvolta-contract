@@ -77,6 +77,9 @@ contract Token {
  */
 contract StandardToken is Token {
 
+    /* Token supply got increased and a new owner received these tokens */
+    event Minted(address receiver, uint amount);
+
     /**
      * Reviewed:
      * - Interger overflow = OK, checked
@@ -186,6 +189,11 @@ contract QvoltaToken is BurnableToken {
         endBlock = endBlockInput;
         // Time in start block bonus is 5 days
         preIcoEndBlock = startBlock + 5 days;
+
+        owner = msg.sender;
+        // Create initially all balance on the team multisig
+        balances[owner] = totalSupply;
+        Minted(owner, totalSupply);
     }
 
     function price() constant returns (uint) {
