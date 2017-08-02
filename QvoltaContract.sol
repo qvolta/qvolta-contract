@@ -167,15 +167,12 @@ contract QvoltaToken is BurnableToken {
     // Address is a multisig wallet.
     address public founder = 0x0;
 
-    // signer address (for clickwrap agreement)
-    // see function() {} for comments
-    address public signer = 0x0;
-
     uint public preIcoEtherCap = 17500; //max amount raised during pre ico 17500 ether (10%)
     uint public etherCap = 175000; //max amount raised during crowdsale 175000 ether
 
-    uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the crowdsale
+    uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the ico
     uint public presaleEtherRaised = 0; //this will keep track of the Ether raised during the crowdsale
+    uint public preIcoTokenSupply = 0; //this will keep track of the token supply sold during the pre-ico
 
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public freeze = true; //Freeze state
@@ -183,9 +180,8 @@ contract QvoltaToken is BurnableToken {
 
     event Withdraw(address indexed sender, address to, uint eth);
 
-    function QvoltaToken(address founderInput, address signerInput, uint startBlockInput, uint endBlockInput) {
+    function QvoltaToken(address founderInput, uint startBlockInput, uint endBlockInput) {
         founder = founderInput;
-        signer = signerInput;
         startBlock = startBlockInput;
         endBlock = endBlockInput;
         // Time in start block bonus is 5 days
@@ -212,14 +208,19 @@ contract QvoltaToken is BurnableToken {
     function buyRecipient(address recipient, uint8 v, bytes32 r, bytes32 s) {
         bytes32 hash = sha256(msg.sender);
 
-        if (ecrecover(hash, v, r, s) != signer) throw;
         if (block.number > startBlock && block.number < preIcoEndBlock && safeAdd(presaleEtherRaised, msg.value) > preIcoEtherCap) throw;
-        if (block.number < startBlock || block.number > endBlock || safeAdd(presaleEtherRaised, msg.value) > etherCap || halted) throw;
+        if (block.number < startBlock || block.number > endBlock || safeAdd(presaleEtherRaised, msg.value) > (etherCap - safeMul(preIcoTokenSupply, price())) || halted) throw;
 
         uint tokens = safeMul(msg.value, price());
+        totalSupply = totalSupply - tokens;
+
         balances[recipient] = safeAdd(balances[recipient], tokens);
-        totalSupply = safeAdd(totalSupply, tokens);
+        presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
         presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
+
+        if (block.number >= startBlock && block.number < preIcoEndBlock) {
+            preIcoTokenSupply = safeAdd(preIcoTokenSupply, tokens);
+        }
 
         if (!founder.call.value(msg.value)()) throw;
 
