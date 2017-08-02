@@ -26,7 +26,6 @@ contract SafeMath {
     }
 }
 
-
 /**
  * ERC 20 token
  *
@@ -77,6 +76,7 @@ contract Token {
  * https://github.com/ethereum/EIPs/issues/20
  */
 contract StandardToken is Token {
+
     /**
      * Reviewed:
      * - Interger overflow = OK, checked
@@ -171,7 +171,7 @@ contract QvoltaToken is BurnableToken {
     // see function() {} for comments
     address public signer = 0x0;
 
-    uint public preIcoEtherCap = 1750; //max amount raised during pre ico 1750 ether (10%)
+    uint public preIcoEtherCap = 17500; //max amount raised during pre ico 17500 ether (10%)
     uint public etherCap = 175000; //max amount raised during crowdsale 175000 ether
 
     uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the crowdsale
@@ -189,7 +189,7 @@ contract QvoltaToken is BurnableToken {
         startBlock = startBlockInput;
         endBlock = endBlockInput;
         // Time in start block bonus is 5 days
-        preIcoEndBlock = startBlock + ((5 * 24 * 60 * 60) / 16);
+        preIcoEndBlock = startBlock + 5 days;
     }
 
     function price() constant returns (uint) {
@@ -290,4 +290,3 @@ contract QvoltaToken is BurnableToken {
         throw;
     }
 }
-
