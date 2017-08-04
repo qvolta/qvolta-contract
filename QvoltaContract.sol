@@ -1,4 +1,4 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.4.13;
 
 /**
  * Overflow aware uint math functions.
@@ -22,7 +22,7 @@ contract SafeMath {
     }
 
     function assert(bool assertion) internal {
-        if (!assertion) throw;
+        require(assertion);
     }
 }
 
@@ -34,35 +34,35 @@ contract SafeMath {
 contract Token {
 
     /// @return total amount of tokens
-    function totalSupply() constant returns (uint256 supply) {}
+    function totalSupply() constant returns (uint256 supply);
 
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance
-    function balanceOf(address _owner) constant returns (uint256 balance) {}
+    function balanceOf(address _owner) constant returns (uint256 balance);
 
     /// @notice send `_value` token to `_to` from `msg.sender`
     /// @param _to The address of the recipient
     /// @param _value The amount of token to be transferred
     /// @return Whether the transfer was successful or not
-    function transfer(address _to, uint256 _value) returns (bool success) {}
+    function transfer(address _to, uint256 _value) returns (bool success);
 
     /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
     /// @param _from The address of the sender
     /// @param _to The address of the recipient
     /// @param _value The amount of token to be transferred
     /// @return Whether the transfer was successful or not
-    function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {}
+    function transferFrom(address _from, address _to, uint256 _value) returns (bool success);
 
     /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
     /// @param _spender The address of the account able to transfer the tokens
     /// @param _value The amount of wei to be approved for transfer
     /// @return Whether the approval was successful or not
-    function approve(address _spender, uint256 _value) returns (bool success) {}
+    function approve(address _spender, uint256 _value) returns (bool success);
 
     /// @param _owner The address of the account owning tokens
     /// @param _spender The address of the account able to transfer the tokens
     /// @return Amount of remaining tokens allowed to spent
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining) {}
+    function allowance(address _owner, address _spender) constant returns (uint256 remaining);
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
 
@@ -70,15 +70,13 @@ contract Token {
 
 }
 
+
 /**
  * ERC 20 token
  *
  * https://github.com/ethereum/EIPs/issues/20
  */
 contract StandardToken is Token {
-
-    /* Token supply got increased and a new owner received these tokens */
-    event Minted(address receiver, uint amount);
 
     /**
      * Reviewed:
@@ -133,25 +131,7 @@ contract StandardToken is Token {
 
 }
 
-contract BurnableToken is StandardToken, SafeMath {
-
-    address public constant BURN_ADDRESS = 0;
-
-    /** How many tokens we burned */
-    event Burned(address burner, uint burnedAmount);
-
-    /**
-     * Burn extra tokens from a balance.
-     */
-    function burn(uint burnAmount) {
-        address burner = msg.sender;
-        balances[burner] = safeSub(balances[burner], burnAmount);
-        totalSupply = safeSub(totalSupply, burnAmount);
-        Burned(burner, burnAmount);
-    }
-}
-
-contract QvoltaToken is BurnableToken {
+contract QvoltaToken is StandardToken, SafeMath {
 
     string public name = "Qvolta Token";
 
@@ -159,53 +139,59 @@ contract QvoltaToken is BurnableToken {
 
     uint public decimals = 18;
 
-    uint public totalSupply = 218750000;
-
-    uint public startBlock; // pre-ico start block (set in constructor)
-    uint public preIcoEndBlock; // pre-ico end - start block + 5 days
-    uint public endBlock; // ico end block (set in constructor)
+    bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
+    bool public freeze = true; //Freeze state
+    bool public preIco = false; //Pre-ico state
+    bool public ico = false; //Pre-ico state
 
     // Initial founder address (set in constructor)
-    // All deposited ETH will be instantly forwarded to this address.
+    // All deposited ETH will be forwarded to this address.
     // Address is a multisig wallet.
     address public founder = 0x0;
+    address public owner = 0x0;
+
+    uint public bounty = 2187500; //Bounty count
 
     uint public preIcoEtherCap = 17500; //max amount raised during pre ico 17500 ether (10%)
     uint public etherCap = 175000; //max amount raised during crowdsale 175000 ether
 
-    uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the ico
+    uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the crowdsale
     uint public presaleEtherRaised = 0; //this will keep track of the Ether raised during the crowdsale
-    uint public preIcoTokenSupply = 0; //this will keep track of the token supply sold during the pre-ico
 
-    bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
-    bool public freeze = true; //Freeze state
+    event Burned(address indexed sender, uint eth);
     event Buy(address indexed sender, uint eth, uint fbt);
-
     event Withdraw(address indexed sender, address to, uint eth);
 
-    function QvoltaToken(address founderInput, uint startBlockInput, uint endBlockInput) {
-        founder = founderInput;
-        startBlock = startBlockInput;
-        endBlock = endBlockInput;
-        // Time in start block bonus is 5 days
-        preIcoEndBlock = startBlock + 5 days;
-
+    function QvoltaToken(address _founder) {
         owner = msg.sender;
-        // Create initially all balance on the team multisig
-        balances[owner] = totalSupply;
-        Minted(owner, totalSupply);
+        founder = _founder;
+
+        uint totalTokens = 218750000;
+        uint team = 41562500;
+
+        balances[msg.sender] = team;
+        totalSupply = safeSub(totalTokens, team);
+        totalSupply = safeSub(totalTokens, bounty);
     }
 
+    /**
+     * Pre-ico price is 2000 Qvolta for 1 ETH
+     * Regular price is 1000 Qvolta for 1 ETH
+     */
     function price() constant returns (uint) {
         //pre-ico price
-        if (block.number >= startBlock && block.number < preIcoEndBlock) return 2000;
+        if (preIco) return 2000*10^18;
         //default price
-        return 1000;
+        return 1000*10^18;
     }
 
-    // Buy entry point
-    function buy(uint8 v, bytes32 r, bytes32 s) {
-        buyRecipient(msg.sender, v, r, s);
+    /**
+      * The basic entry point to participate the crowdsale process.
+      *
+      * Pay for funding, get invested tokens back in the sender address.
+      */
+    function buy() public payable {
+        buyRecipient(msg.sender);
     }
 
     /**
@@ -213,53 +199,88 @@ contract QvoltaToken is BurnableToken {
      *
      * Buy for the sender itself or buy on the behalf of somebody else (third party address).
      */
-    function buyRecipient(address recipient, uint8 v, bytes32 r, bytes32 s) {
-        bytes32 hash = sha256(msg.sender);
+    function buyRecipient(address recipient) payable {
+        require(msg.value>0);
 
-        if (block.number > startBlock && block.number < preIcoEndBlock && safeAdd(presaleEtherRaised, msg.value) > preIcoEtherCap) throw;
-        if (block.number < startBlock || block.number > endBlock || safeAdd(presaleEtherRaised, msg.value) > (etherCap - safeMul(preIcoTokenSupply, price())) || halted) throw;
+        // Check how much tokens already sold
+        if (preIco) {
+            require(safeAdd(presaleTokenSupply, msg.value) < preIcoEtherCap);
+        }
 
+        if (ico) {
+            require(safeAdd(presaleTokenSupply, msg.value) < etherCap);
+        }
+
+        // Send Ether to founder address
+        if (!founder.call.value(msg.value)()) {
+            revert();
+        }
+
+        // Count expected tokens price
         uint tokens = safeMul(msg.value, price());
-        totalSupply = totalSupply - tokens;
 
+        // Add tokens to user balance and remove from totalSupply
         balances[recipient] = safeAdd(balances[recipient], tokens);
+        totalSupply = safeSub(totalSupply, tokens);
+
+        // Update stats
         presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
         presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
 
-        if (block.number >= startBlock && block.number < preIcoEndBlock) {
-            preIcoTokenSupply = safeAdd(preIcoTokenSupply, tokens);
-        }
-
-        if (!founder.call.value(msg.value)()) throw;
-
-        //immediately send Ether to founder address
+        // Send buy Qvolta token action
         Buy(recipient, msg.value, tokens);
+    }
+
+    /**
+     * Pre-ico state.
+     */
+    function setPreIco() onlyOwner() {
+        preIco = true;
+    }
+
+    function unPreIco() onlyOwner() {
+        preIco = false;
+    }
+
+    /**
+     * Pre-ico state.
+     */
+    function setIco() onlyOwner() {
+        ico = true;
+    }
+
+    function unIco() onlyOwner() {
+        ico = false;
     }
 
     /**
      * Emergency Stop ICO.
      */
-    function halt() {
-        if (msg.sender != founder) throw;
+    function halt() onlyOwner() {
         halted = true;
     }
 
-    function unhalt() {
-        if (msg.sender != founder) throw;
+    function unhalt() onlyOwner() {
         halted = false;
     }
 
     /**
      * Freeze and unfreeze ICO.
      */
-    function setFreeze() {
-        if (msg.sender != founder) throw;
+    function freeze() onlyOwner() {
         freeze = true;
     }
 
-    function unfreeze() {
-        if (msg.sender != founder) throw;
+    function unfreeze() onlyOwner() {
         freeze = false;
+    }
+
+    /**
+     * Transfer bounty
+     */
+    function sendBounty(address _to, uint256 _value) onlyOwner() {
+        bounty = safeSub(bounty, _value);
+        balances[_to] = safeAdd(balances[_to], _value);
     }
 
     /**
@@ -267,8 +288,11 @@ contract QvoltaToken is BurnableToken {
      *
      * Prevent transfers until freeze period is over.
      */
-    function transfer(address _to, uint256 _value) returns (bool success) {
-        if (freeze && msg.sender != founder) throw;
+    function transfer(address _to, uint256 _value) isAvailable() returns (bool success) {
+        if (freeze) {
+            require(msg.sender == owner);
+        }
+
         return super.transfer(_to, _value);
     }
     /**
@@ -276,26 +300,46 @@ contract QvoltaToken is BurnableToken {
      *
      * Prevent transfers until freeze period is over.
      */
-    function transferFrom(address _from, address _to, uint256 _value) returns (bool success) {
-        if (freeze && msg.sender != founder) throw;
+    function transferFrom(address _from, address _to, uint256 _value) isAvailable() returns (bool success) {
+        if (freeze) {
+            require(msg.sender == owner);
+        }
+
         return super.transferFrom(_from, _to, _value);
     }
 
     /**
      * Burn all tokens from a balance.
-     *
      */
-    function burn(uint burnAmount) {
-        address burner = msg.sender;
-        balances[burner] = safeSub(balances[burner], burnAmount);
-        totalSupply = safeSub(totalSupply, burnAmount);
-        Burned(burner, burnAmount);
+    function burnRemainingTokens() isAvailable() onlyOwner() {
+        Burned(msg.sender, totalSupply);
+        totalSupply = 0;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    modifier isAvailable() {
+        require(!halted && !freeze);
+        _;
     }
 
     /**
-     * Do not allow direct deposits.
+     * just being sent some cash?
      */
-    function() {
-        throw;
+    function() payable {
+
+    }
+
+    // Replaces an owner
+    function changeOwner(address _to) onlyOwner() {
+        owner = _to;
+    }
+
+    // Replaces an founder
+    function changeFounder(address _to) onlyOwner() {
+        founder = _to;
     }
 }
