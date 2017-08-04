@@ -142,7 +142,6 @@ contract QvoltaToken is StandardToken, SafeMath {
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public freeze = true; //Freeze state
     bool public preIco = false; //Pre-ico state
-    bool public ico = false; //Pre-ico state
 
     // Initial founder address (set in constructor)
     // All deposited ETH will be forwarded to this address.
@@ -152,8 +151,8 @@ contract QvoltaToken is StandardToken, SafeMath {
 
     uint public bounty = 2187500; //Bounty count
 
-    uint public preIcoEtherCap = 17500; //max amount raised during pre ico 17500 ether (10%)
-    uint public etherCap = 175000; //max amount raised during crowdsale 175000 ether
+    uint public preIcoCap = 17500000; //max amount raised during pre ico 17500 ether (10%)
+    uint public icoCap = 175000000; //max amount raised during crowdsale 175000 ether
 
     uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the crowdsale
     uint public presaleEtherRaised = 0; //this will keep track of the Ether raised during the crowdsale
@@ -169,7 +168,7 @@ contract QvoltaToken is StandardToken, SafeMath {
         uint totalTokens = 218750000;
         uint team = 41562500;
 
-        balances[msg.sender] = team;
+        balances[founder] = team;
         totalSupply = safeSub(totalTokens, team);
         totalSupply = safeSub(totalTokens, bounty);
     }
@@ -202,22 +201,20 @@ contract QvoltaToken is StandardToken, SafeMath {
     function buyRecipient(address recipient) payable {
         require(msg.value>0);
 
+        // Count expected tokens price
+        uint tokens = safeMul(msg.value, price());
+
         // Check how much tokens already sold
         if (preIco) {
-            require(safeAdd(presaleTokenSupply, msg.value) < preIcoEtherCap);
-        }
-
-        if (ico) {
-            require(safeAdd(presaleTokenSupply, msg.value) < etherCap);
+            require(safeAdd(presaleTokenSupply, tokens) < preIcoCap);
+        } else {
+            require(safeAdd(presaleTokenSupply, tokens) < safeSub(icoCap, preIcoCap));
         }
 
         // Send Ether to founder address
         if (!founder.call.value(msg.value)()) {
             revert();
         }
-
-        // Count expected tokens price
-        uint tokens = safeMul(msg.value, price());
 
         // Add tokens to user balance and remove from totalSupply
         balances[recipient] = safeAdd(balances[recipient], tokens);
@@ -240,17 +237,6 @@ contract QvoltaToken is StandardToken, SafeMath {
 
     function unPreIco() onlyOwner() {
         preIco = false;
-    }
-
-    /**
-     * Pre-ico state.
-     */
-    function setIco() onlyOwner() {
-        ico = true;
-    }
-
-    function unIco() onlyOwner() {
-        ico = false;
     }
 
     /**
@@ -289,10 +275,6 @@ contract QvoltaToken is StandardToken, SafeMath {
      * Prevent transfers until freeze period is over.
      */
     function transfer(address _to, uint256 _value) isAvailable() returns (bool success) {
-        if (freeze) {
-            require(msg.sender == owner);
-        }
-
         return super.transfer(_to, _value);
     }
     /**
@@ -301,10 +283,6 @@ contract QvoltaToken is StandardToken, SafeMath {
      * Prevent transfers until freeze period is over.
      */
     function transferFrom(address _from, address _to, uint256 _value) isAvailable() returns (bool success) {
-        if (freeze) {
-            require(msg.sender == owner);
-        }
-
         return super.transferFrom(_from, _to, _value);
     }
 
