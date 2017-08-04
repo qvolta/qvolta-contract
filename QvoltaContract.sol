@@ -156,10 +156,9 @@ contract QvoltaToken is StandardToken, SafeMath {
 
     uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the crowdsale
     uint public presaleEtherRaised = 0; //this will keep track of the Ether raised during the crowdsale
+    uint public preIcoTokenSupply = 0;//this will keep track of the token supply created during the pre-ico
 
-    event Burned(address indexed sender, uint eth);
     event Buy(address indexed sender, uint eth, uint fbt);
-    event Withdraw(address indexed sender, address to, uint eth);
 
     function QvoltaToken(address _founder) {
         owner = msg.sender;
@@ -199,6 +198,7 @@ contract QvoltaToken is StandardToken, SafeMath {
      * Buy for the sender itself or buy on the behalf of somebody else (third party address).
      */
     function buyRecipient(address recipient) payable {
+        require(!halted);
         require(msg.value>0);
 
         // Count expected tokens price
@@ -208,7 +208,7 @@ contract QvoltaToken is StandardToken, SafeMath {
         if (preIco) {
             require(safeAdd(presaleTokenSupply, tokens) < preIcoCap);
         } else {
-            require(safeAdd(presaleTokenSupply, tokens) < safeSub(icoCap, preIcoCap));
+            require(safeAdd(presaleTokenSupply, tokens) < safeSub(icoCap, preIcoTokenSupply));
         }
 
         // Send Ether to founder address
@@ -221,6 +221,9 @@ contract QvoltaToken is StandardToken, SafeMath {
         totalSupply = safeSub(totalSupply, tokens);
 
         // Update stats
+        if (preIco) {
+            preIcoTokenSupply  = safeAdd(preIcoTokenSupply, tokens);
+        }
         presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
         presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
 
@@ -290,7 +293,6 @@ contract QvoltaToken is StandardToken, SafeMath {
      * Burn all tokens from a balance.
      */
     function burnRemainingTokens() isAvailable() onlyOwner() {
-        Burned(msg.sender, totalSupply);
         totalSupply = 0;
     }
 
