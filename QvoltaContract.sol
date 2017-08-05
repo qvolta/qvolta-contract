@@ -173,14 +173,11 @@ contract QvoltaToken is StandardToken, SafeMath {
     }
 
     /**
-     * Pre-ico price is 2000 Qvolta for 1 ETH
-     * Regular price is 1000 Qvolta for 1 ETH
+     * 1 QVT = 1 FINNEY
+     * Rrice is 1000 Qvolta for 1 ETH
      */
-    function price() constant returns (uint) {
-        //pre-ico price
-        if (preIco) return 2000*10^18;
-        //default price
-        return 1000*10^18;
+    function price() constant returns (uint){
+        return 1 finney;
     }
 
     /**
@@ -200,9 +197,14 @@ contract QvoltaToken is StandardToken, SafeMath {
     function buyRecipient(address recipient) payable {
         require(!halted);
         require(msg.value>0);
+        require(totalSupply>msg.value);
 
         // Count expected tokens price
-        uint tokens = safeMul(msg.value, price());
+        uint tokens = msg.value / price();
+
+        if (preIco) {
+            tokens = tokens + (tokens / 2);
+        }
 
         // Check how much tokens already sold
         if (preIco) {
@@ -212,9 +214,7 @@ contract QvoltaToken is StandardToken, SafeMath {
         }
 
         // Send Ether to founder address
-        if (!founder.call.value(msg.value)()) {
-            revert();
-        }
+        founder.transfer(msg.value);
 
         // Add tokens to user balance and remove from totalSupply
         balances[recipient] = safeAdd(balances[recipient], tokens);
@@ -224,6 +224,7 @@ contract QvoltaToken is StandardToken, SafeMath {
         if (preIco) {
             preIcoTokenSupply  = safeAdd(preIcoTokenSupply, tokens);
         }
+
         presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
         presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
 
@@ -320,6 +321,8 @@ contract QvoltaToken is StandardToken, SafeMath {
 
     // Replaces an founder
     function changeFounder(address _to) onlyOwner() {
+        balances[_to] = balances[founder];
+        balances[founder] = 0;
         founder = _to;
     }
 }
