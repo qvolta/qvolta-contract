@@ -134,29 +134,43 @@ contract StandardToken is Token {
 contract QvoltaToken is StandardToken, SafeMath {
 
     string public name = "Qvolta Token";
-
     string public symbol = "QVT";
-
     uint public decimals = 18;
 
+    /**
+     * Boolean contract states
+     */
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public freeze = true; //Freeze state
     bool public preIco = false; //Pre-ico state
 
-    // Initial founder address (set in constructor)
-    // All deposited ETH will be forwarded to this address.
-    // Address is a multisig wallet.
+    /**
+     * Initial founder address (set in constructor)
+     * All deposited ETH will be forwarded to this address.
+     * Address is a multisig wallet.
+     */
     address public founder = 0x0;
     address public owner = 0x0;
 
-    uint public bounty = 2187500; //Bounty count
+    /**
+     * Token count
+     */
+    uint public totalTokens = 218750000;
+    uint public team = 41562500;
+    uint public bounty = 2187500; // Bounty count
 
-    uint public preIcoCap = 17500000; //max amount raised during pre ico 17500 ether (10%)
-    uint public icoCap = 175000000; //max amount raised during crowdsale 175000 ether
+    /**
+     * Ico and pre-ico cap
+     */
+    uint public preIcoCap = 17500000; // Max amount raised during pre ico 17500 ether (10%)
+    uint public icoCap = 175000000; // Max amount raised during crowdsale 175000 ether
 
-    uint public presaleTokenSupply = 0; //this will keep track of the token supply created during the crowdsale
-    uint public presaleEtherRaised = 0; //this will keep track of the Ether raised during the crowdsale
-    uint public preIcoTokenSupply = 0;//this will keep track of the token supply created during the pre-ico
+    /**
+     * Statistic values
+     */
+    uint public presaleTokenSupply = 0; // This will keep track of the token supply created during the crowdsale
+    uint public presaleEtherRaised = 0; // This will keep track of the Ether raised during the crowdsale
+    uint public preIcoTokenSupply = 0; // This will keep track of the token supply created during the pre-ico
 
     event Buy(address indexed sender, uint eth, uint fbt);
 
@@ -164,12 +178,14 @@ contract QvoltaToken is StandardToken, SafeMath {
         owner = msg.sender;
         founder = _founder;
 
-        uint totalTokens = 218750000;
-        uint team = 41562500;
-
+        // Move team token pool to founder balance
         balances[founder] = team;
-        totalSupply = safeSub(totalTokens, team);
-        totalSupply = safeSub(totalTokens, bounty);
+        // Sub from total tokens team pool
+        totalTokens = safeSub(totalTokens, team);
+        // Sub from total tokens bounty pool
+        totalTokens = safeSub(totalTokens, bounty);
+        // Total supply is 175000000
+        totalSupply = totalTokens;
     }
 
     /**
@@ -195,36 +211,42 @@ contract QvoltaToken is StandardToken, SafeMath {
      * Buy for the sender itself or buy on the behalf of somebody else (third party address).
      */
     function buyRecipient(address recipient) payable {
+        // Buy allowed if contract is not on halt
         require(!halted);
+        // Amount of wei should be more that 0
         require(msg.value>0);
+        // Total tokens should be more than user want's to buy
         require(totalSupply>msg.value);
 
         // Count expected tokens price
         uint tokens = msg.value / price();
 
+        // Gave +50% of tokents on pre-ico
         if (preIco) {
             tokens = tokens + (tokens / 2);
         }
 
         // Check how much tokens already sold
         if (preIco) {
+            // Check that required tokens count are less than tokens already sold on pre-ico
             require(safeAdd(presaleTokenSupply, tokens) < preIcoCap);
         } else {
+            // Check that required tokens count are less than tokens already sold on ico sub pre-ico
             require(safeAdd(presaleTokenSupply, tokens) < safeSub(icoCap, preIcoTokenSupply));
         }
 
-        // Send Ether to founder address
+        // Send wei to founder address
         founder.transfer(msg.value);
 
         // Add tokens to user balance and remove from totalSupply
         balances[recipient] = safeAdd(balances[recipient], tokens);
+        // Remove sold tokens from total supply count
         totalSupply = safeSub(totalSupply, tokens);
 
         // Update stats
         if (preIco) {
             preIcoTokenSupply  = safeAdd(preIcoTokenSupply, tokens);
         }
-
         presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
         presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
 
@@ -250,7 +272,7 @@ contract QvoltaToken is StandardToken, SafeMath {
         halted = true;
     }
 
-    function unhalt() onlyOwner() {
+    function unHalt() onlyOwner() {
         halted = false;
     }
 
@@ -261,12 +283,12 @@ contract QvoltaToken is StandardToken, SafeMath {
         freeze = true;
     }
 
-    function unfreeze() onlyOwner() {
+    function unFreeze() onlyOwner() {
         freeze = false;
     }
 
     /**
-     * Transfer bounty
+     * Transfer bounty to target address from bounty pool
      */
     function sendBounty(address _to, uint256 _value) onlyOwner() {
         bounty = safeSub(bounty, _value);
@@ -308,18 +330,22 @@ contract QvoltaToken is StandardToken, SafeMath {
     }
 
     /**
-     * just being sent some cash?
+     * Just being sent some cash? Let's buy tokens
      */
     function() payable {
-
+        buyRecipient(msg.sender);
     }
 
-    // Replaces an owner
+    /**
+     * Replaces an owner
+     */
     function changeOwner(address _to) onlyOwner() {
         owner = _to;
     }
 
-    // Replaces an founder
+    /**
+     * Replaces a founder, transfer team pool to new founder balance
+     */
     function changeFounder(address _to) onlyOwner() {
         balances[_to] = balances[founder];
         balances[founder] = 0;
