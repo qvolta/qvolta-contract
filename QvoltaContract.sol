@@ -133,7 +133,7 @@ contract StandardToken is Token {
 
 contract QvoltaToken is StandardToken, SafeMath {
 
-    string public name = "Qvolta Token";
+    string public name = "QVT";
     string public symbol = "QVT";
     uint public decimals = 18;
 
