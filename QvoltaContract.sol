@@ -291,6 +291,14 @@ contract QvoltaToken is StandardToken, SafeMath {
      * Transfer bounty to target address from bounty pool
      */
     function sendBounty(address _to, uint256 _value) onlyOwner() {
+        balances[founder] = safeSub(balances[founder], _value);
+        balances[_to] = safeAdd(balances[_to], _value);
+    }
+
+    /**
+     * Transfer team tokens to target address
+     */
+    function sendTeamTokens(address _to, uint256 _value) onlyOwner() {
         bounty = safeSub(bounty, _value);
         balances[_to] = safeAdd(balances[_to], _value);
     }
