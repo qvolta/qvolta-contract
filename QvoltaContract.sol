@@ -142,7 +142,7 @@ contract QvoltaToken is StandardToken, SafeMath {
      */
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public freeze = true; //Freeze state
-    bool public preIco = false; //Pre-ico state
+    bool public preIco = true; //Pre-ico state
 
     /**
      * Initial founder address (set in constructor)
