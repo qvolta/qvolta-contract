@@ -1,4 +1,4 @@
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.13;
 
 contract ERC20 {
   uint public totalSupply;
@@ -124,7 +124,6 @@ contract QvoltaToken is StandardToken {
      * Boolean contract states
      */
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
-    bool public freeze = true; //Freeze state
     bool public preIco = true; //Pre-ico state
 
     /**
@@ -157,7 +156,7 @@ contract QvoltaToken is StandardToken {
 
     event Buy(address indexed sender, uint eth, uint fbt);
 
-    function QvoltaToken(address _founder) {
+    function QvoltaToken(address _founder) payable {
         owner = msg.sender;
         founder = _founder;
 
@@ -184,25 +183,17 @@ contract QvoltaToken is StandardToken {
       *
       * Pay for funding, get invested tokens back in the sender address.
       */
-    function buy() public payable {
-        buyRecipient(msg.sender);
-    }
-
-    /**
-     * Main token buy function.
-     *
-     * Buy for the sender itself or buy on the behalf of somebody else (third party address).
-     */
-    function buyRecipient(address recipient) payable {
+    function buy() public payable returns(bool) {
         // Buy allowed if contract is not on halt
         require(!halted);
         // Amount of wei should be more that 0
         require(msg.value>0);
-        // Total tokens should be more than user want's to buy
-        require(totalSupply>msg.value);
 
         // Count expected tokens price
         uint tokens = msg.value / price();
+
+        // Total tokens should be more than user want's to buy
+        require(totalSupply>tokens);
 
         // Gave +50% of tokents on pre-ico
         if (preIco) {
@@ -222,7 +213,7 @@ contract QvoltaToken is StandardToken {
         founder.transfer(msg.value);
 
         // Add tokens to user balance and remove from totalSupply
-        balances[recipient] = safeAdd(balances[recipient], tokens);
+        balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
         // Remove sold tokens from total supply count
         totalSupply = safeSub(totalSupply, tokens);
 
@@ -234,7 +225,9 @@ contract QvoltaToken is StandardToken {
         presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
 
         // Send buy Qvolta token action
-        Buy(recipient, msg.value, tokens);
+        Buy(msg.sender, msg.value, tokens);
+
+        return true;
     }
 
     /**
@@ -260,17 +253,6 @@ contract QvoltaToken is StandardToken {
     }
 
     /**
-     * Freeze and unfreeze ICO.
-     */
-    function freeze() onlyOwner() {
-        freeze = true;
-    }
-
-    function unFreeze() onlyOwner() {
-        freeze = false;
-    }
-
-    /**
      * Transfer bounty to target address from bounty pool
      */
     function sendBounty(address _to, uint256 _value) onlyOwner() {
@@ -289,7 +271,7 @@ contract QvoltaToken is StandardToken {
     /**
      * ERC 20 Standard Token interface transfer function
      *
-     * Prevent transfers until freeze period is over.
+     * Prevent transfers until halt period is over.
      */
     function transfer(address _to, uint256 _value) isAvailable() returns (bool success) {
         return super.transfer(_to, _value);
@@ -297,7 +279,7 @@ contract QvoltaToken is StandardToken {
     /**
      * ERC 20 Standard Token interface transfer function
      *
-     * Prevent transfers until freeze period is over.
+     * Prevent transfers until halt period is over.
      */
     function transferFrom(address _from, address _to, uint256 _value) isAvailable() returns (bool success) {
         return super.transferFrom(_from, _to, _value);
@@ -316,7 +298,7 @@ contract QvoltaToken is StandardToken {
     }
 
     modifier isAvailable() {
-        require(!halted && !freeze);
+        require(!halted);
         _;
     }
 
@@ -324,7 +306,7 @@ contract QvoltaToken is StandardToken {
      * Just being sent some cash? Let's buy tokens
      */
     function() payable {
-        buyRecipient(msg.sender);
+        buy();
     }
 
     /**
