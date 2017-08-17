@@ -118,13 +118,14 @@ contract QvoltaToken is StandardToken {
 
     string public name = "QVT";
     string public symbol = "QVT";
-    uint public decimals = 18;
+    uint public decimals = 0;
 
     /**
      * Boolean contract states
      */
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public preIco = true; //Pre-ico state
+    bool public freeze = true; //Freeze state
 
     /**
      * Initial founder address (set in constructor)
@@ -156,6 +157,11 @@ contract QvoltaToken is StandardToken {
 
     event Buy(address indexed sender, uint eth, uint fbt);
 
+    /* This generates a public event on the blockchain that will notify clients */
+    event TokensSent(address indexed to, uint256 value);
+    event ContributionReceived(address indexed to, uint256 value);
+    event Burn(address indexed from, uint256 value);
+
     function QvoltaToken(address _founder) payable {
         owner = msg.sender;
         founder = _founder;
@@ -168,6 +174,7 @@ contract QvoltaToken is StandardToken {
         totalTokens = safeSub(totalTokens, bounty);
         // Total supply is 175000000
         totalSupply = totalTokens;
+        balances[owner] = totalSupply;
     }
 
     /**
@@ -193,7 +200,7 @@ contract QvoltaToken is StandardToken {
         uint tokens = msg.value / price();
 
         // Total tokens should be more than user want's to buy
-        require(totalSupply>tokens);
+        require(balances[owner]>tokens);
 
         // Gave +50% of tokents on pre-ico
         if (preIco) {
@@ -215,7 +222,7 @@ contract QvoltaToken is StandardToken {
         // Add tokens to user balance and remove from totalSupply
         balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
         // Remove sold tokens from total supply count
-        totalSupply = safeSub(totalSupply, tokens);
+        balances[owner] = safeSub(balances[owner], tokens);
 
         // Update stats
         if (preIco) {
@@ -226,6 +233,10 @@ contract QvoltaToken is StandardToken {
 
         // Send buy Qvolta token action
         Buy(msg.sender, msg.value, tokens);
+
+        // /* Emit log events */
+        TokensSent(msg.sender, tokens);
+        ContributionReceived(msg.sender, msg.value);
 
         return true;
     }
@@ -255,17 +266,31 @@ contract QvoltaToken is StandardToken {
     /**
      * Transfer bounty to target address from bounty pool
      */
-    function sendBounty(address _to, uint256 _value) onlyOwner() {
+    function sendTeamTokens(address _to, uint256 _value) onlyOwner() {
         balances[founder] = safeSub(balances[founder], _value);
         balances[_to] = safeAdd(balances[_to], _value);
+        // /* Emit log events */
+        TokensSent(_to, _value);
     }
 
     /**
      * Transfer team tokens to target address
      */
-    function sendTeamTokens(address _to, uint256 _value) onlyOwner() {
+    function sendBounty(address _to, uint256 _value) onlyOwner() {
         bounty = safeSub(bounty, _value);
         balances[_to] = safeAdd(balances[_to], _value);
+        // /* Emit log events */
+        TokensSent(_to, _value);
+    }
+
+    /**
+     * Transfer bounty to target address from bounty pool
+     */
+    function sendSupplyTokens(address _to, uint256 _value) onlyOwner() {
+        balances[owner] = safeSub(balances[owner], _value);
+        balances[_to] = safeAdd(balances[_to], _value);
+        // /* Emit log events */
+        TokensSent(_to, _value);
     }
 
     /**
@@ -289,7 +314,8 @@ contract QvoltaToken is StandardToken {
      * Burn all tokens from a balance.
      */
     function burnRemainingTokens() isAvailable() onlyOwner() {
-        totalSupply = 0;
+        Burn(owner, balances[owner]);
+        balances[owner] = 0;
     }
 
     modifier onlyOwner() {
@@ -298,7 +324,7 @@ contract QvoltaToken is StandardToken {
     }
 
     modifier isAvailable() {
-        require(!halted);
+        require(!halted && !freeze);
         _;
     }
 
@@ -310,9 +336,22 @@ contract QvoltaToken is StandardToken {
     }
 
     /**
+     * Freeze and unfreeze ICO.
+     */
+    function freeze() onlyOwner() {
+         freeze = true;
+    }
+
+     function unFreeze() onlyOwner() {
+         freeze = false;
+     }
+
+    /**
      * Replaces an owner
      */
     function changeOwner(address _to) onlyOwner() {
+        balances[_to] = balances[owner];
+        balances[owner] = 0;
         owner = _to;
     }
 
