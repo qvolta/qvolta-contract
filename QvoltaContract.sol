@@ -272,6 +272,7 @@ contract QvoltaToken is StandardToken {
         balances[_to] = safeAdd(balances[_to], _value);
         // /* Emit log events */
         TokensSent(_to, _value);
+        Transfer(owner, _to, _value);
     }
 
     /**
@@ -282,6 +283,7 @@ contract QvoltaToken is StandardToken {
         balances[_to] = safeAdd(balances[_to], _value);
         // /* Emit log events */
         TokensSent(_to, _value);
+        Transfer(owner, _to, _value);
     }
 
     /**
@@ -292,6 +294,7 @@ contract QvoltaToken is StandardToken {
         balances[_to] = safeAdd(balances[_to], _value);
         // /* Emit log events */
         TokensSent(_to, _value);
+        Transfer(owner, _to, _value);
     }
 
     /**
