@@ -237,6 +237,7 @@ contract QvoltaToken is StandardToken {
         // /* Emit log events */
         TokensSent(msg.sender, tokens);
         ContributionReceived(msg.sender, msg.value);
+        Transfer(owner, msg.sender, tokens);
 
         return true;
     }
