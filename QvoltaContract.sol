@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.15;
 
 contract ERC20 {
   uint public totalSupply;
@@ -114,7 +114,7 @@ contract StandardToken is ERC20, SafeMath {
 
 }
 
-contract QvoltaToken is StandardToken {
+contract QVT is StandardToken {
 
     string public name = "QVT";
     string public symbol = "QVT";
@@ -162,7 +162,7 @@ contract QvoltaToken is StandardToken {
     event ContributionReceived(address indexed to, uint256 value);
     event Burn(address indexed from, uint256 value);
 
-    function QvoltaToken(address _founder) payable {
+    function QVT(address _founder) payable {
         owner = msg.sender;
         founder = _founder;
 
@@ -191,13 +191,19 @@ contract QvoltaToken is StandardToken {
       * Pay for funding, get invested tokens back in the sender address.
       */
     function buy() public payable returns(bool) {
+        processBuy(msg.sender, msg.value);
+
+        return true;
+    }
+
+    function processBuy(address _to, uint256 _value) internal returns(bool) {
         // Buy allowed if contract is not on halt
         require(!halted);
         // Amount of wei should be more that 0
-        require(msg.value>0);
+        require(_value>0);
 
         // Count expected tokens price
-        uint tokens = msg.value / price();
+        uint tokens = _value / price();
 
         // Total tokens should be more than user want's to buy
         require(balances[owner]>tokens);
@@ -217,10 +223,10 @@ contract QvoltaToken is StandardToken {
         }
 
         // Send wei to founder address
-        founder.transfer(msg.value);
+        founder.transfer(_value);
 
         // Add tokens to user balance and remove from totalSupply
-        balances[msg.sender] = safeAdd(balances[msg.sender], tokens);
+        balances[_to] = safeAdd(balances[_to], tokens);
         // Remove sold tokens from total supply count
         balances[owner] = safeSub(balances[owner], tokens);
 
@@ -229,15 +235,15 @@ contract QvoltaToken is StandardToken {
             preIcoTokenSupply  = safeAdd(preIcoTokenSupply, tokens);
         }
         presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
-        presaleEtherRaised = safeAdd(presaleEtherRaised, msg.value);
+        presaleEtherRaised = safeAdd(presaleEtherRaised, _value);
 
         // Send buy Qvolta token action
-        Buy(msg.sender, msg.value, tokens);
+        Buy(_to, _value, tokens);
 
         // /* Emit log events */
-        TokensSent(msg.sender, tokens);
-        ContributionReceived(msg.sender, msg.value);
-        Transfer(owner, msg.sender, tokens);
+        TokensSent(_to, tokens);
+        ContributionReceived(_to, _value);
+        Transfer(owner, _to, tokens);
 
         return true;
     }
@@ -305,6 +311,7 @@ contract QvoltaToken is StandardToken {
     function transfer(address _to, uint256 _value) isAvailable() returns (bool success) {
         return super.transfer(_to, _value);
     }
+
     /**
      * ERC 20 Standard Token interface transfer function
      *
