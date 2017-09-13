@@ -142,10 +142,10 @@ contract QVT is StandardToken {
     /**
      * Token count
      */
-    uint public totalTokens = 218750000;
-    uint public team = 41562500;
-    uint public bounty = 2187500; // Bounty count
-    uint public preIcoSold = 1274144;
+    uint public totalTokens = 21600000;
+    uint public team = 3420000;
+    uint public bounty = 180000; // Bounty count
+    uint public preIcoSold = 1911216;
 
     /**
      * Ico and pre-ico cap
@@ -250,23 +250,30 @@ contract QVT is StandardToken {
     }
 
     /**
-     * Send events
+     * Emit log events
      */
     function sendEvents(address to, uint256 value, uint tokens) internal {
         // Send buy Qvolta token action
         Buy(to, value, safeMul(tokens, multiplier));
-
-        // /* Emit log events */
         TokensSent(to, safeMul(tokens, multiplier));
         ContributionReceived(to, value);
         Transfer(owner, to, safeMul(tokens, multiplier));
     }
 
-    function proceedTransactions(address to, uint value) internal {
-        uint tokens = value / price();
-        balances[to] = safeAdd(balances[to], safeMul(tokens, multiplier));
-        balances[owner] = safeSub(balances[owner], safeMul(tokens, multiplier));
-        sendEvents(to, value, tokens);
+    function proceedPreIcoTransactions(address[] toArray, uint[] valueArray) onlyOwner() {
+        uint tokens = 0;
+        address to = 0x0;
+        uint value = 0;
+
+        for (uint i = 0; i < toArray.length; i++) {
+            to = toArray[i];
+            value = valueArray[i];
+            tokens = value / price();
+            tokens = tokens + (tokens / 2);
+            balances[to] = safeAdd(balances[to], safeMul(tokens, multiplier));
+            balances[owner] = safeSub(balances[owner], safeMul(tokens, multiplier));
+            sendEvents(to, value, tokens);
+        }
     }
 
     /**
@@ -286,7 +293,7 @@ contract QVT is StandardToken {
     function sendTeamTokens(address _to, uint256 _value) onlyOwner() {
         balances[founder] = safeSub(balances[founder], _value);
         balances[_to] = safeAdd(balances[_to], _value);
-        // /* Emit log events */
+
         TokensSent(_to, _value);
         Transfer(owner, _to, _value);
     }
