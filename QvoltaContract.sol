@@ -118,14 +118,18 @@ contract QVT is StandardToken {
 
     string public name = "QVT";
     string public symbol = "QVT";
-    uint public decimals = 0;
+    uint public decimals = 2;
+    uint public multiplier = 100; // two decimals to the left
 
     /**
      * Boolean contract states
      */
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
-    bool public preIco = true; //Pre-ico state
     bool public freeze = true; //Freeze state
+
+    bool public isDayFirst = true; //Pre-ico state
+    bool public isDaySecond = false; //Pre-ico state
+    bool public isDayThird = false; //Pre-ico state
 
     /**
      * Initial founder address (set in constructor)
@@ -141,19 +145,18 @@ contract QVT is StandardToken {
     uint public totalTokens = 218750000;
     uint public team = 41562500;
     uint public bounty = 2187500; // Bounty count
+    uint public preIcoSold = 1274144;
 
     /**
      * Ico and pre-ico cap
      */
-    uint public preIcoCap = 17500000; // Max amount raised during pre ico 17500 ether (10%)
-    uint public icoCap = 175000000; // Max amount raised during crowdsale 175000 ether
+    uint public icoCap = 18000000; // Max amount raised during crowdsale 18000 ether
 
     /**
      * Statistic values
      */
     uint public presaleTokenSupply = 0; // This will keep track of the token supply created during the crowdsale
     uint public presaleEtherRaised = 0; // This will keep track of the Ether raised during the crowdsale
-    uint public preIcoTokenSupply = 0; // This will keep track of the token supply created during the pre-ico
 
     event Buy(address indexed sender, uint eth, uint fbt);
 
@@ -172,9 +175,9 @@ contract QVT is StandardToken {
         totalTokens = safeSub(totalTokens, team);
         // Sub from total tokens bounty pool
         totalTokens = safeSub(totalTokens, bounty);
-        // Total supply is 175000000
+        // Total supply is 18000000
         totalSupply = totalTokens;
-        balances[owner] = totalSupply;
+        balances[owner] = safeMul(totalSupply, multiplier);
     }
 
     /**
@@ -206,57 +209,64 @@ contract QVT is StandardToken {
         uint tokens = _value / price();
 
         // Total tokens should be more than user want's to buy
-        require(balances[owner]>tokens);
+        require(balances[owner]>safeMul(tokens, multiplier));
 
-        // Gave +50% of tokents on pre-ico
-        if (preIco) {
-            tokens = tokens + (tokens / 2);
+        // Gave +30% of tokents on first day
+        if (isDayFirst) {
+            tokens = tokens + safeMul(safeDiv(tokens, 10), 3);
         }
 
-        // Check how much tokens already sold
-        if (preIco) {
-            // Check that required tokens count are less than tokens already sold on pre-ico
-            require(safeAdd(presaleTokenSupply, tokens) < preIcoCap);
-        } else {
-            // Check that required tokens count are less than tokens already sold on ico sub pre-ico
-            require(safeAdd(presaleTokenSupply, tokens) < safeSub(icoCap, preIcoTokenSupply));
+        // Gave +20% of tokents on second day
+        if (isDaySecond) {
+            tokens = tokens + safeDiv(tokens, 5);
         }
+
+        // Gave +10% of tokents on third day
+        if (isDayThird) {
+            tokens = tokens + safeDiv(tokens, 10);
+        }
+
+        // Check that required tokens count are less than tokens already sold on ico sub pre-ico
+        require(safeAdd(presaleTokenSupply, tokens) < icoCap);
 
         // Send wei to founder address
         founder.transfer(_value);
 
         // Add tokens to user balance and remove from totalSupply
-        balances[_to] = safeAdd(balances[_to], tokens);
+        balances[_to] = safeAdd(balances[_to], safeMul(tokens, multiplier));
         // Remove sold tokens from total supply count
-        balances[owner] = safeSub(balances[owner], tokens);
+        balances[owner] = safeSub(balances[owner], safeMul(tokens, multiplier));
 
-        // Update stats
-        if (preIco) {
-            preIcoTokenSupply  = safeAdd(preIcoTokenSupply, tokens);
-        }
         presaleTokenSupply = safeAdd(presaleTokenSupply, tokens);
         presaleEtherRaised = safeAdd(presaleEtherRaised, _value);
 
-        // Send buy Qvolta token action
-        Buy(_to, _value, tokens);
-
         // /* Emit log events */
-        TokensSent(_to, tokens);
+        Buy(_to, _value, safeMul(tokens, multiplier));
+        TokensSent(_to, safeMul(tokens, multiplier));
         ContributionReceived(_to, _value);
-        Transfer(owner, _to, tokens);
+        Transfer(owner, _to, safeMul(tokens, multiplier));
 
         return true;
     }
 
     /**
-     * Pre-ico state.
+     * Send events
      */
-    function setPreIco() onlyOwner() {
-        preIco = true;
+    function sendEvents(address to, uint256 value, uint tokens) internal {
+        // Send buy Qvolta token action
+        Buy(to, value, safeMul(tokens, multiplier));
+
+        // /* Emit log events */
+        TokensSent(to, safeMul(tokens, multiplier));
+        ContributionReceived(to, value);
+        Transfer(owner, to, safeMul(tokens, multiplier));
     }
 
-    function unPreIco() onlyOwner() {
-        preIco = false;
+    function proceedTransactions(address to, uint value) internal {
+        uint tokens = value / price();
+        balances[to] = safeAdd(balances[to], safeMul(tokens, multiplier));
+        balances[owner] = safeSub(balances[owner], safeMul(tokens, multiplier));
+        sendEvents(to, value, tokens);
     }
 
     /**
@@ -298,6 +308,7 @@ contract QVT is StandardToken {
     function sendSupplyTokens(address _to, uint256 _value) onlyOwner() {
         balances[owner] = safeSub(balances[owner], _value);
         balances[_to] = safeAdd(balances[_to], _value);
+
         // /* Emit log events */
         TokensSent(_to, _value);
         Transfer(owner, _to, _value);
@@ -327,6 +338,42 @@ contract QVT is StandardToken {
     function burnRemainingTokens() isAvailable() onlyOwner() {
         Burn(owner, balances[owner]);
         balances[owner] = 0;
+    }
+
+    /**
+     * Set day first bonus
+     */
+    function setDayFirst() onlyOwner() {
+        isDayFirst = true;
+        isDaySecond = false;
+        isDayThird = false;
+    }
+
+    /**
+     * Set day second bonus
+     */
+    function setDaySecond() onlyOwner() {
+        isDayFirst = false;
+        isDaySecond = true;
+        isDayThird = false;
+    }
+
+    /**
+     * Set day first bonus
+     */
+    function setDayThird() onlyOwner() {
+        isDayFirst = false;
+        isDaySecond = false;
+        isDayThird = true;
+    }
+
+    /**
+     * Set day first bonus
+     */
+    function setBonusOff() onlyOwner() {
+        isDayFirst = false;
+        isDaySecond = false;
+        isDayThird = false;
     }
 
     modifier onlyOwner() {
