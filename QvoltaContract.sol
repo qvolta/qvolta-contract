@@ -144,7 +144,7 @@ contract QVT is StandardToken {
      */
     uint public totalTokens = 21600000;
     uint public team = 3420000;
-    uint public bounty = 180000; // Bounty count
+    uint public bounty = 180000 * multiplier; // Bounty count
     uint public preIcoSold = 0;
 
     /**
@@ -306,6 +306,8 @@ contract QVT is StandardToken {
      * Transfer team tokens to target address
      */
     function sendBounty(address _to, uint256 _value) onlyOwner() {
+        require(bounty > _value);
+
         bounty = safeSub(bounty, _value);
         balances[_to] = safeAdd(balances[_to], _value);
         // /* Emit log events */
