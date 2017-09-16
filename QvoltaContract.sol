@@ -145,7 +145,7 @@ contract QVT is StandardToken {
     uint public totalTokens = 21600000;
     uint public team = 3420000;
     uint public bounty = 180000; // Bounty count
-    uint public preIcoSold = 1911216;
+    uint public preIcoSold = 0;
 
     /**
      * Ico and pre-ico cap
@@ -260,6 +260,9 @@ contract QVT is StandardToken {
         Transfer(owner, to, safeMul(tokens, multiplier));
     }
 
+    /**
+     * Run mass transfers with pre-ico *2 bonus
+     */
     function proceedPreIcoTransactions(address[] toArray, uint[] valueArray) onlyOwner() {
         uint tokens = 0;
         address to = 0x0;
@@ -269,9 +272,10 @@ contract QVT is StandardToken {
             to = toArray[i];
             value = valueArray[i];
             tokens = value / price();
-            tokens = tokens + (tokens / 2);
+            tokens = tokens + tokens;
             balances[to] = safeAdd(balances[to], safeMul(tokens, multiplier));
             balances[owner] = safeSub(balances[owner], safeMul(tokens, multiplier));
+            preIcoSold = safeAdd(preIcoSold, tokens);
             sendEvents(to, value, tokens);
         }
     }
