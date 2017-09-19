@@ -169,15 +169,17 @@ contract QVT is StandardToken {
         owner = msg.sender;
         founder = _founder;
 
+        team = safeMul(team, multiplier);
+
+        // Total supply is 18000000
+        totalSupply = safeMul(totalTokens, multiplier);
+        balances[owner] = safeSub(totalSupply, team);
+
         // Move team token pool to founder balance
         balances[founder] = team;
-        // Sub from total tokens team pool
-        totalTokens = safeSub(totalTokens, team);
-        // Sub from total tokens bounty pool
-        totalTokens = safeSub(totalTokens, bounty);
-        // Total supply is 18000000
-        totalSupply = totalTokens;
-        balances[owner] = safeMul(totalSupply, multiplier);
+
+        TokensSent(founder, team);
+        Transfer(owner, founder, team);
     }
 
     /**
@@ -289,17 +291,6 @@ contract QVT is StandardToken {
 
     function unHalt() onlyOwner() {
         halted = false;
-    }
-
-    /**
-     * Transfer bounty to target address from bounty pool
-     */
-    function sendTeamTokens(address _to, uint256 _value) onlyOwner() {
-        balances[founder] = safeSub(balances[founder], _value);
-        balances[_to] = safeAdd(balances[_to], _value);
-
-        TokensSent(_to, _value);
-        Transfer(owner, _to, _value);
     }
 
     /**
