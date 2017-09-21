@@ -127,6 +127,7 @@ contract QVT is StandardToken {
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public freeze = true; //Freeze state
 
+    bool public isRoundTwoStarted = false; //Second investment round state
     bool public isDayFirst = true; //Pre-ico state
     bool public isDaySecond = false; //Pre-ico state
     bool public isDayThird = false; //Pre-ico state
@@ -378,6 +379,16 @@ contract QVT is StandardToken {
         isDayFirst = false;
         isDaySecond = false;
         isDayThird = false;
+    }
+
+    /**
+     * Start round two
+     */
+    function startRoundTwo() onlyOwner() {
+        require(!isRoundTwoStarted);
+        isRoundTwoStarted = true;
+
+        balances[owner] = safeAdd(balances[owner], safeMul(icoCap, multiplier));
     }
 
     modifier onlyOwner() {
