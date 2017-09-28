@@ -128,7 +128,7 @@ contract QVT is StandardToken {
     bool public freeze = true; //Freeze state
 
     uint public roundCount = 1; //Round state
-    bool public isDayFirst = true; //Pre-ico state
+    bool public isDayFirst = false; //Pre-ico state
     bool public isDaySecond = false; //Pre-ico state
     bool public isDayThird = false; //Pre-ico state
     bool public isPreSale = false; // Pre-sale bonus
