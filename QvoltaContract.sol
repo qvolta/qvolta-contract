@@ -127,10 +127,11 @@ contract QVT is StandardToken {
     bool public halted = false; //the founder address can set this to true to halt the crowdsale due to emergency
     bool public freeze = true; //Freeze state
 
-    bool public isRoundTwoStarted = false; //Second investment round state
+    uint public roundCount = 1; //Round state
     bool public isDayFirst = true; //Pre-ico state
     bool public isDaySecond = false; //Pre-ico state
     bool public isDayThird = false; //Pre-ico state
+    bool public isPreSale = false; // Pre-sale bonus
 
     /**
      * Initial founder address (set in constructor)
@@ -213,6 +214,11 @@ contract QVT is StandardToken {
 
         // Total tokens should be more than user want's to buy
         require(balances[owner]>safeMul(tokens, multiplier));
+
+        // Gave pre-sale bonus
+        if (isPreSale) {
+            tokens = tokens + (tokens / 2);
+        }
 
         // Gave +30% of tokents on first day
         if (isDayFirst) {
@@ -381,12 +387,26 @@ contract QVT is StandardToken {
         isDayThird = false;
     }
 
+   /**
+    * Set pre-sale bonus
+    */
+   function setPreSaleOn() onlyOwner() {
+       isPreSale = true;
+   }
+
+   /**
+    * Set pre-sale bonus off
+    */
+   function setPreSaleOff() onlyOwner() {
+       isPreSale = false;
+   }
+
     /**
-     * Start round two
+     * Start new investment round
      */
-    function startRoundTwo() onlyOwner() {
-        require(!isRoundTwoStarted);
-        isRoundTwoStarted = true;
+    function startNewRound() onlyOwner() {
+        require(roundCount < 5);
+        roundCount = roundCount + 1;
 
         balances[owner] = safeAdd(balances[owner], safeMul(icoCap, multiplier));
     }
