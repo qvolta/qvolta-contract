@@ -118,8 +118,8 @@ contract QVT is StandardToken {
 
     string public name = "QVT";
     string public symbol = "QVT";
-    uint public decimals = 2;
-    uint public multiplier = 100; // two decimals to the left
+    uint public decimals = 18;
+    uint public multiplier = 1000000000000000000; // two decimals to the left
 
     /**
      * Boolean contract states
@@ -307,22 +307,22 @@ contract QVT is StandardToken {
         require(bounty > _value);
 
         bounty = safeSub(bounty, _value);
-        balances[_to] = safeAdd(balances[_to], _value);
+        balances[_to] = safeAdd(balances[_to], safeMul(_value, multiplier));
         // /* Emit log events */
-        TokensSent(_to, _value);
-        Transfer(owner, _to, _value);
+        TokensSent(_to, safeMul(_value, multiplier));
+        Transfer(owner, _to, safeMul(_value, multiplier));
     }
 
     /**
      * Transfer bounty to target address from bounty pool
      */
     function sendSupplyTokens(address _to, uint256 _value) onlyOwner() {
-        balances[owner] = safeSub(balances[owner], _value);
-        balances[_to] = safeAdd(balances[_to], _value);
+        balances[owner] = safeSub(balances[owner], safeMul(_value, multiplier));
+        balances[_to] = safeAdd(balances[_to], safeMul(_value, multiplier));
 
         // /* Emit log events */
-        TokensSent(_to, _value);
-        Transfer(owner, _to, _value);
+        TokensSent(_to, safeMul(_value, multiplier));
+        Transfer(owner, _to, safeMul(_value, multiplier));
     }
 
     /**
