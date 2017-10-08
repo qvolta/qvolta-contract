@@ -282,6 +282,8 @@ contract QVT is StandardToken {
             value = valueArray[i];
             tokens = value / price();
             tokens = tokens + tokens;
+            require(balances[owner]>safeMul(tokens, multiplier));
+
             balances[to] = safeAdd(balances[to], safeMul(tokens, multiplier));
             balances[owner] = safeSub(balances[owner], safeMul(tokens, multiplier));
             preIcoSold = safeAdd(preIcoSold, tokens);
@@ -407,6 +409,7 @@ contract QVT is StandardToken {
     function startNewRound() onlyOwner() {
         require(roundCount < 5);
         roundCount = roundCount + 1;
+        presaleTokenSupply = 0;
 
         balances[owner] = safeAdd(balances[owner], safeMul(icoCap, multiplier));
     }
